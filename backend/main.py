@@ -4,7 +4,7 @@ from db.models import PromptResult, SQLModel
 from db.session import engine, get_session
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from run_snapshot import run_snapshot_chatgpt
+from agents.run_snapshot import run_snapshot_chatgpt
 
 app = FastAPI()
 
