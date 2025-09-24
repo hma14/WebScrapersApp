@@ -41,15 +41,26 @@ function App() {
   const [isLoading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [error, setError] = useState(0);
+  const [error, setError] = useState("");
 
   const submitPrompt = async () => {
     setLoading(true);
-    const res = await axios.post(`${url}/api/query`, null, {
-      params: { prompt },
-    });
-    setResults([res.data, ...results]);
-    setLoading(false);
+    try {
+      const res = await axios.post(`${url}/api/query/chatgpt`, null, {
+        params: { prompt },
+      });
+      setResults([res.data, ...results]);
+      setLoading(false);
+    } catch (err) {
+      if (err.message) {
+        setError(err.message);
+      } else if (err.response && err.response.data && err.message.data.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError(err);
+      }
+      setLoading(false);
+    }
   };
 
   const pageSize = 5;
@@ -156,13 +167,17 @@ function App() {
       ) : (
         <Typography sx={{ mt: 3 }}>No results yet.</Typography>
       )}
-      <Pagination
-        count={totalPages}
-        page={page}
-        onChange={(e, value) => setPage(value)}
-        color="primary"
-        sx={{ display: "flex", justifyContent: "center", mt: 2 }}
-      />
+      {error ? (
+        ""
+      ) : (
+        <Pagination
+          count={totalPages}
+          page={page}
+          onChange={(e, value) => setPage(value)}
+          color="primary"
+          sx={{ display: "flex", justifyContent: "center", mt: 2 }}
+        />
+      )}
     </Container>
   );
 }

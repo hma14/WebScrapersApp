@@ -1,15 +1,13 @@
-from fastapi import FastAPI, Depends, Query
+from fastapi import FastAPI, Depends, Query, HTTPException
 from sqlmodel import Session, select
 from db.models import PromptResult, SQLModel
 from db.session import engine, get_session
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from agents.run_snapshot import run_snapshot_chatgpt
+from agents.run_snapshot import run_snapshot_booking
 
 app = FastAPI()
-
-url = "https://chatgpt.com/" 
-dataset_id = "gd_m7aof0k82r803d5bjm"    # chatgpt.com
 
 # Allow frontend (localhost:3000) to talk to backend (localhost:8000)
 app.add_middleware(
@@ -30,11 +28,37 @@ async def lifespan(app: FastAPI):
     # Optional shutdown code
     print("App shutting down")
 
-@app.post("/api/query")
-async def query_agents(prompt: str, session: Session = Depends(get_session)):
+@app.post("/api/query/chatgpt")
+async def query_agents_chatgpt(prompt: str, session: Session = Depends(get_session)):
+    
+    url = "https://chatgpt.com/" 
+    dataset_id = "gd_m7aof0k82r803d5bjm"    # chatgpt.com
+
     results =  await run_snapshot_chatgpt(url, prompt, dataset_id) 
     if results is None:
         return results
+    
+    record = PromptResult(prompt=prompt, results=results[0]["answer_text_markdown"])
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    return record
+
+@app.post("/api/query/booking")
+async def query_agents_booking(prompt: str, session: Session = Depends(get_session)):
+    
+    url = "https://www.booking.com"
+    dataset_id = "gd_mdy9ld3p1e0oqlj9g4"    # booking.com
+    location = "Vancouver"
+    check_in = "2025-10-16"
+    check_out = "2025-10-24"
+    country = "Canada"
+    currency = "CAD"
+    results =  await run_snapshot_booking(url, location, dataset_id, check_in, check_out, country, currency) 
+    if results is None:
+        return results
+    if results[0]["error"]:
+        raise HTTPException(status_code=500, detail=str(results[0]["error"]))
     record = PromptResult(prompt=prompt, results=results[0]["answer_text_markdown"])
     session.add(record)
     session.commit()

@@ -3,20 +3,21 @@ import json
 import requests
 import os
 from dotenv import load_dotenv, find_dotenv
+from fastapi import HTTPException
 
 load_dotenv()
 
 BASE_URL = "https://api.brightdata.com/datasets/v3"
 API_TOKEN = os.getenv("BRIGHTDATA_TOKEN")
-
+WAIT_TIMEOUT = 300
 
 headers = {
     "Authorization": f"Bearer {API_TOKEN}",
     "Content-Type": "application/json",
 }
 
-def trigger_snapshot(url, location, dataset_id, check_in, check_out, country, currency, adults=2, rooms=1, 
-                     web_search="false", additional_prompt=""):
+def trigger_snapshot_booking(url, location, dataset_id, check_in, check_out, country, currency, adults=2, rooms=1, 
+                    web_search="false", additional_prompt=""):
     """Start a new snapshot run"""
     payload = [
         {
@@ -66,7 +67,7 @@ def trigger_snapshot_chatgpt(url, prompt, dataset_id, web_search="false", additi
     print(f"📸 Triggered snapshot: {snapshot_id}")
     return snapshot_id
 
-async def wait_for_snapshot(snapshot_id, timeout=300):
+async def wait_for_snapshot(snapshot_id, timeout=WAIT_TIMEOUT):
     """Poll progress until snapshot is ready"""
     url = f"{BASE_URL}/progress/{snapshot_id}"
     start = time.time()
@@ -101,17 +102,21 @@ def download_snapshot(snapshot_id, output_file="snapshot_results.json", fmt="jso
     return data
 
 async def run_snapshot_booking(url, location, dataset_id, check_in, check_out, country, currency="USD", output_file="snapshot_results.json"):
-    """Full pipeline: trigger → wait → download"""
-    snapshot_id = trigger_snapshot(url, location, dataset_id, check_in, check_out, 
-                                    country, currency, 
-                                    web_search="false", additional_prompt="")
-    await wait_for_snapshot(snapshot_id)
-    results = download_snapshot(snapshot_id, output_file=output_file)
-    return results
+    
+    try:
+        """Full pipeline: trigger → wait → download"""
+        snapshot_id = trigger_snapshot_booking(url, location, dataset_id, check_in, check_out, 
+                                        country, currency)
+        await wait_for_snapshot(snapshot_id)
+        return download_snapshot(snapshot_id, output_file=output_file)
+    except Exception as e:
+        print(f"Pipeline error: {e}")
+        
+        # Raise HTTPException so frontend gets error response
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def run_snapshot_chatgpt(url, prompt, dataset_id, output_file="snapshot_result_chatgpt"):
     """Full pipeline: trigger → wait → download"""
     snapshot_id = trigger_snapshot_chatgpt(url, prompt, dataset_id, web_search="false", additional_prompt="")
     await wait_for_snapshot(snapshot_id)
-    results = download_snapshot(snapshot_id, output_file=output_file)
-    return results
+    return download_snapshot(snapshot_id, output_file=output_file)
