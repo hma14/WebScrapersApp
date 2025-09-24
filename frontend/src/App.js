@@ -32,8 +32,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import dayjs from "dayjs";
 import "./App.css";
 
-const url = "http://localhost:9000";
-//const url = "http://agent-back.lottotry.com:9000";
+//const url = "http://localhost:9000";
+const url = "http://agent-back.lottotry.com:9000";
 
 function App() {
   const [prompt, setPrompt] = useState("");
